@@ -1513,10 +1513,9 @@ async function cloudSignIn(){
   const password=document.getElementById("cloudPassword").value.trim();
 
   const {error}=await cloud.auth.signInWithPassword({
-    email,
-    password
-  });
+    email,    password
 
+」
   document.getElementById("cloudStatus").innerHTML =
     error ? "❌ "+error.message : "✅ 登入成功";
 
@@ -1530,6 +1529,100 @@ async function cloudSignOut(){
 
 setTimeout(initCloudSystem,1500);
 console.log("Supabase Connected");
+function initAuthUI(){
+document.body.insertAdjacentHTML('beforeend',`
+<div id="authBox" style="
+position:fixed;
+bottom:90px;
+right:15px;
+z-index:9999;
+background:#fff;
+padding:12px;
+border-radius:16px;
+box-shadow:0 4px 20px rgba(0,0,0,.15);
+width:280px;
+display:none;
+">
+<h3>☁️ 雲端登入</h3>
+
+<input id="email"
+placeholder="Email"
+style="width:100%;margin:4px 0;padding:8px;">
+
+<input id="password"
+type="password"
+placeholder="密碼"
+style="width:100%;margin:4px 0;padding:8px;">
+
+<input id="nickname"
+placeholder="暱稱"
+style="width:100%;margin:4px 0;padding:8px;">
+
+<button onclick="signUpUser()">註冊</button>
+<button onclick="signInUser()">登入</button>
+
+<div id="authStatus"></div>
+</div>
+
+<button id="cloudBtn"
+onclick="toggleAuth()"
+style="
+position:fixed;
+bottom:20px;
+left:20px;
+z-index:9999;
+border:none;
+border-radius:50%;
+width:60px;
+height:60px;
+font-size:24px;
+">
+☁️
+</button>
+`);
+}
+
+function toggleAuth(){
+const box=document.getElementById("authBox");
+box.style.display=
+box.style.display==="none"?"block":"none";
+}
+
+async function signUpUser(){
+
+const email=document.getElementById("email").value;
+const password=document.getElementById("password").value;
+const nickname=document.getElementById("nickname").value;
+
+const {error}=await sb.auth.signUp({
+email,
+password,
+options:{
+data:{
+display_name:nickname
+}
+}
+});
+
+document.getElementById("authStatus").innerHTML=
+error?error.message:"註冊成功，請收信驗證";
+}
+
+async function signInUser(){
+
+const email=document.getElementById("email").value;
+const password=document.getElementById("password").value;
+
+const {error}=await sb.auth.signInWithPassword({
+email,
+password
+});
+
+document.getElementById("authStatus").innerHTML=
+error?error.message:"登入成功";
+}
+
+initAuthUI();
 </script>
 </body>
 </html>
