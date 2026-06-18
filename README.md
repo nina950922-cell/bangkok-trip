@@ -338,11 +338,6 @@ textarea{min-height:76px;resize:vertical}
 </div>
 <div class="card"><h2>行程衝突提醒</h2><div id="conflicts" class="meta"></div></div>
 <div class="card">
-<h2>照片牆</h2>
-<input type="file" accept="image/*" multiple onchange="savePhotos(event)">
-<div class="photoGrid" id="photoGrid"></div>
-</div>
-<div class="card">
 <h2>緊急資訊</h2>
 <p class="meta">泰國緊急電話：191｜觀光警察：1155｜台灣駐泰國代表處：建議出發前自行儲存最新聯絡方式。</p>
 <div class="notice">護照、保險、機票、飯店訂房截圖請離線保存；護照影本與電子檔分開存放。</div>
