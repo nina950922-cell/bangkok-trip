@@ -1422,17 +1422,118 @@ function generateCertificate(){
 setTimeout(()=>{
   initTravelStats();
 },2500);
-/* ===== Supabase ===== */
+/* ===== Cloud Login System ===== */
 
-const SUPABASE_URL="https://ajgqtsdczzgvuqorulbd.supabase.co";
+const SUPABASE_URL = "https://ajgqtsdczzgvuqorulbd.supabase.co";
+const SUPABASE_KEY = "sb_publishable_VvQst4oND6bNOtj3m06-rQ_z6XHfYCx";
 
-const SUPABASE_KEY="sb_publishable_VvQst4oND6bNOtj3m06-rQ_z6XHfYCx";
+const cloud = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const sb = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+function initCloudSystem(){
+  if(document.getElementById("cloudPanel")) return;
 
+  document.body.insertAdjacentHTML("beforeend",`
+    <button onclick="toggleCloudPanel()" style="
+      position:fixed;
+      left:16px;
+      bottom:106px;
+      width:48px;
+      height:48px;
+      border-radius:50%;
+      background:var(--primary);
+      color:white;
+      z-index:999;
+      box-shadow:var(--shadow);
+    ">☁️</button>
+
+    <div id="cloudPanel" class="card" style="
+      position:fixed;
+      left:12px;
+      right:12px;
+      bottom:165px;
+      z-index:999;
+      display:none;
+      max-width:480px;
+      margin:auto;
+    ">
+      <h2>☁️ 多人同步登入</h2>
+
+      <input id="cloudEmail" type="email" placeholder="Email">
+      <input id="cloudPassword" type="password" placeholder="密碼至少 6 碼">
+      <input id="cloudName" placeholder="暱稱，例如 Nina">
+
+      <button class="smallbtn primary" onclick="cloudSignUp()">註冊</button>
+      <button class="smallbtn" onclick="cloudSignIn()">登入</button>
+      <button class="smallbtn" onclick="cloudSignOut()">登出</button>
+
+      <div id="cloudStatus" class="meta" style="margin-top:10px"></div>
+    </div>
+  `);
+
+  refreshCloudUser();
+}
+
+function toggleCloudPanel(){
+  const p=document.getElementById("cloudPanel");
+  p.style.display=p.style.display==="none"?"block":"none";
+}
+
+async function refreshCloudUser(){
+  const {data:{user}} = await cloud.auth.getUser();
+  const s=document.getElementById("cloudStatus");
+
+  if(!s) return;
+
+  if(user){
+    s.innerHTML=`✅ 已登入：${user.email}`;
+  }else{
+    s.innerHTML=`尚未登入`;
+  }
+}
+
+async function cloudSignUp(){
+  const email=document.getElementById("cloudEmail").value.trim();
+  const password=document.getElementById("cloudPassword").value.trim();
+  const display_name=document.getElementById("cloudName").value.trim() || email.split("@")[0];
+
+  if(!email || !password){
+    alert("請輸入 Email 和密碼");
+    return;
+  }
+
+  const {error}=await cloud.auth.signUp({
+    email,
+    password,
+    options:{
+      data:{display_name}
+    }
+  });
+
+  document.getElementById("cloudStatus").innerHTML =
+    error ? "❌ "+error.message : "✅ 註冊成功，請去信箱確認 Email";
+}
+
+async function cloudSignIn(){
+  const email=document.getElementById("cloudEmail").value.trim();
+  const password=document.getElementById("cloudPassword").value.trim();
+
+  const {error}=await cloud.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  document.getElementById("cloudStatus").innerHTML =
+    error ? "❌ "+error.message : "✅ 登入成功";
+
+  refreshCloudUser();
+}
+
+async function cloudSignOut(){
+  await cloud.auth.signOut();
+  refreshCloudUser();
+}
+
+setTimeout(initCloudSystem,1500);
 console.log("Supabase Connected");
 </script>
 </body>
