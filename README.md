@@ -95,6 +95,129 @@ textarea{min-height:76px;resize:vertical}
 .superrichBox{background:linear-gradient(135deg,#fff7ef,#ffe0d2);border-radius:22px;padding:14px;margin:10px 0}
 [data-theme=dark] .superrichBox{background:linear-gradient(135deg,#2c1c18,#43251f)}
 .settleCard b{color:var(--primary)}
+.mapModeCard{
+  background:var(--accent);
+  border-radius:22px;
+  padding:14px;
+  margin-top:12px;
+}
+
+.routeItem{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+}
+
+.routeDot{
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:var(--primary);
+  margin-top:4px;
+}
+
+.routeLine{
+  width:2px;
+  height:38px;
+  background:var(--primary2);
+  margin:4px 0 4px 8px;
+}
+
+.routePlace{
+  flex:1;
+}
+
+.routeTransport{
+  color:var(--muted);
+  font-size:13px;
+  margin-top:4px;
+}
+.achievementCard{
+  background:linear-gradient(135deg,#ffe8bf,#ffd36e);
+  border-radius:20px;
+  padding:12px;
+  margin:10px 0;
+  color:#4d3200;
+}
+
+.footprintCard{
+  background:var(--accent);
+  border-radius:20px;
+  padding:12px;
+  margin:10px 0;
+}
+
+.footprintDone{
+  border:2px solid #58c27d;
+}
+
+.memoryCard{
+  background:linear-gradient(135deg,#ffd9cf,#fff0ea);
+  border-radius:22px;
+  padding:16px;
+  margin-top:12px;
+}
+.aiCard{
+  position:fixed;
+  right:16px;
+  bottom:170px;
+  z-index:999;
+}
+
+.aiBtn{
+  width:60px;
+  height:60px;
+  border-radius:50%;
+  border:none;
+  background:linear-gradient(135deg,var(--primary),var(--primary2));
+  color:white;
+  font-size:28px;
+  box-shadow:var(--shadow);
+}
+
+.aiPanel{
+  position:fixed;
+  right:16px;
+  bottom:240px;
+  width:320px;
+  max-width:calc(100vw - 32px);
+  height:420px;
+  background:var(--card);
+  border-radius:24px;
+  border:1px solid var(--line);
+  box-shadow:var(--shadow);
+  display:none;
+  flex-direction:column;
+  overflow:hidden;
+  z-index:999;
+}
+
+.aiMessages{
+  flex:1;
+  overflow:auto;
+  padding:12px;
+}
+
+.aiMsg{
+  padding:10px 12px;
+  border-radius:16px;
+  margin-bottom:8px;
+}
+
+.aiUser{
+  background:var(--primary);
+  color:white;
+}
+
+.aiBot{
+  background:var(--accent);
+}
+
+.aiInput{
+  display:flex;
+  gap:6px;
+  padding:10px;
+}
 </style>
 </head>
 <body>
@@ -665,6 +788,421 @@ async function loadBangkokWeather(){
       "天氣資料載入失敗";
   }
 }
+function addMapMode(){
+
+  const itineraryPage=document.getElementById("itinerary");
+
+  if(!itineraryPage) return;
+
+  if(document.getElementById("mapModeSection")) return;
+
+  const box=document.createElement("div");
+
+  box.className="card";
+  box.id="mapModeSection";
+
+  box.innerHTML=`
+    <h2>📍 地圖模式</h2>
+
+    <select id="mapDaySelect"></select>
+
+    <div id="mapRouteResult"></div>
+  `;
+
+  itineraryPage.appendChild(box);
+
+  const select=document.getElementById("mapDaySelect");
+
+  data.days.forEach((d,i)=>{
+    const op=document.createElement("option");
+    op.value=i;
+    op.textContent=d.title;
+    select.appendChild(op);
+  });
+
+  select.addEventListener("change",renderMapRoute);
+
+  renderMapRoute();
+}
+
+function renderMapRoute(){
+
+  const routeBox=document.getElementById("mapRouteResult");
+
+  if(!routeBox) return;
+
+  const dayIndex=
+    Number(document.getElementById("mapDaySelect").value||0);
+
+  const day=data.days[dayIndex];
+
+  let html=`<div class="mapModeCard">`;
+
+  day.items.forEach((item,index)=>{
+
+    html+=`
+      <div class="routeItem">
+
+        <div>
+
+          <div class="routeDot"></div>
+
+          ${
+            index<day.items.length-1
+            ? `<div class="routeLine"></div>`
+            : ``
+          }
+
+        </div>
+
+        <div class="routePlace">
+
+          <b>${item.title}</b>
+
+          <div class="meta">
+            ${item.time||""}
+          </div>
+
+          <div class="routeTransport">
+            🚗 ${item.transport||"自由移動"}
+          </div>
+
+        </div>
+
+      </div>
+    `;
+  });
+
+  html+=`</div>`;
+
+  routeBox.innerHTML=html;
+}
+
+setTimeout(()=>{
+  addMapMode();
+},1000);
+data.footprints=data.footprints||{};
+data.achievements=data.achievements||[];
+
+function initTravelMemory(){
+
+  if(document.getElementById("travelMemorySection")) return;
+
+  const tools=document.getElementById("tools");
+
+  const card=document.createElement("div");
+
+  card.className="card";
+  card.id="travelMemorySection";
+
+  card.innerHTML=`
+    <h2>📍 足跡打卡</h2>
+
+    <div id="footprintList"></div>
+
+    <h2 style="margin-top:20px">🏆 成就系統</h2>
+
+    <div id="achievementList"></div>
+
+    <h2 style="margin-top:20px">🤖 AI旅行回顧</h2>
+
+    <button class="smallbtn primary" onclick="generateMemory()">
+      生成旅行回顧
+    </button>
+
+    <div id="memoryResult"></div>
+  `;
+
+  tools.appendChild(card);
+
+  renderFootprints();
+}
+
+function renderFootprints(){
+
+  const places=[];
+
+  data.days.forEach(day=>{
+    day.items.forEach(item=>{
+      places.push(item.title);
+    });
+  });
+
+  const unique=[...new Set(places)];
+
+  document.getElementById("footprintList").innerHTML=
+  unique.map(place=>{
+
+    const done=data.footprints[place];
+
+    return `
+      <div class="footprintCard ${done?'footprintDone':''}">
+        <b>${place}</b>
+
+        <div class="meta">
+          ${done?'✅ 已完成打卡':'❌ 尚未打卡'}
+        </div>
+
+        <input
+          type="file"
+          accept="image/*"
+          onchange="footprintUpload(event,'${place.replace(/'/g,'')}')">
+
+      </div>
+    `;
+  }).join("");
+
+  checkAchievements();
+}
+
+function footprintUpload(event,place){
+
+  const file=event.target.files[0];
+
+  if(!file) return;
+
+  const reader=new FileReader();
+
+  reader.onload=function(){
+
+    data.footprints[place]=reader.result;
+
+    save();
+
+    renderFootprints();
+  };
+
+  reader.readAsDataURL(file);
+}
+
+function checkAchievements(){
+
+  const completed=
+    Object.keys(data.footprints).length;
+
+  const achievements=[];
+
+  if(completed>=3)
+    achievements.push("🏆 初級旅人");
+
+  if(completed>=8)
+    achievements.push("🏆 景點達人");
+
+  if(completed>=12)
+    achievements.push("🏆 曼谷探險家");
+
+  if(data.footprints["鄭王廟"] &&
+     data.footprints["大皇宮"] &&
+     data.footprints["臥佛寺"])
+    achievements.push("🏆 寺廟巡禮");
+
+  if(data.footprints["JODD FAIRS"] &&
+     data.footprints["唐人街"])
+    achievements.push("🏆 夜市王");
+
+  if(data.footprints["大城獅子動物園"] &&
+     data.footprints["Wat Mahathat"])
+    achievements.push("🏆 大城探險家");
+
+  data.achievements=achievements;
+
+  document.getElementById("achievementList").innerHTML=
+    achievements.length
+    ? achievements.map(a=>`
+      <div class="achievementCard">
+        ${a}
+      </div>
+    `).join("")
+    : `<div class="meta">尚未解鎖成就</div>`;
+}
+
+function generateMemory(){
+
+  const photoCount=
+    Object.keys(data.footprints).length;
+
+  const expense=
+    data.expenses.reduce(
+      (a,b)=>a+Number(b.thb||0),0
+    );
+
+  document.getElementById("memoryResult").innerHTML=`
+    <div class="memoryCard">
+
+      <h3>✈️ 2026 曼谷自由行</h3>
+
+      <p>
+      完成景點：
+      ${photoCount} 個
+      </p>
+
+      <p>
+      總花費：
+      ${expense.toFixed(0)} THB
+      </p>
+
+      <p>
+      解鎖成就：
+      ${data.achievements.length} 個
+      </p>
+
+      <p>
+      已造訪：
+      ${Object.keys(data.footprints).join("、") || "尚無"}
+      </p>
+
+    </div>
+  `;
+}
+
+setTimeout(()=>{
+  initTravelMemory();
+},1500);
+function initTravelAI(){
+
+  if(document.getElementById("travelAI")) return;
+
+  document.body.insertAdjacentHTML("beforeend",`
+
+  <div class="aiPanel" id="travelAI">
+
+    <div style="padding:12px;font-weight:700;border-bottom:1px solid var(--line)">
+      🤖 曼谷旅行助理
+    </div>
+
+    <div class="aiMessages" id="aiMessages">
+
+      <div class="aiMsg aiBot">
+        嗨！可以問我：
+        <br>• 今天行程
+        <br>• Day2 行程
+        <br>• 誰欠誰錢
+        <br>• 今日花費
+        <br>• Big C 必買
+      </div>
+
+    </div>
+
+    <div class="aiInput">
+      <input id="aiQuestion" placeholder="輸入問題...">
+      <button class="smallbtn primary" onclick="askTravelAI()">送出</button>
+    </div>
+
+  </div>
+
+  <div class="aiCard">
+    <button class="aiBtn" onclick="toggleTravelAI()">🤖</button>
+  </div>
+
+  `);
+}
+
+function toggleTravelAI(){
+
+  const panel=document.getElementById("travelAI");
+
+  panel.style.display=
+    panel.style.display==="flex"
+    ? "none"
+    : "flex";
+}
+
+function addAIMessage(text,type){
+
+  const box=document.getElementById("aiMessages");
+
+  box.innerHTML+=`
+    <div class="aiMsg ${type}">
+      ${text}
+    </div>
+  `;
+
+  box.scrollTop=box.scrollHeight;
+}
+
+function askTravelAI(){
+
+  const input=document.getElementById("aiQuestion");
+
+  const q=input.value.trim();
+
+  if(!q) return;
+
+  addAIMessage(q,"aiUser");
+
+  const answer=getTravelAnswer(q);
+
+  setTimeout(()=>{
+    addAIMessage(answer,"aiBot");
+  },300);
+
+  input.value="";
+}
+
+function getTravelAnswer(q){
+
+  q=q.toLowerCase();
+
+  if(q.includes("今天") && q.includes("行程")){
+
+    const day=data.days[data.activeDay];
+
+    return day.items
+      .map(x=>`${x.time} ${x.title}`)
+      .join("<br>");
+  }
+
+  if(q.includes("day1")) return data.days[0].items.map(x=>x.title).join(" → ");
+
+  if(q.includes("day2")) return data.days[1].items.map(x=>x.title).join(" → ");
+
+  if(q.includes("day3")) return data.days[2].items.map(x=>x.title).join(" → ");
+
+  if(q.includes("day4")) return data.days[3].items.map(x=>x.title).join(" → ");
+
+  if(q.includes("day5")) return data.days[4].items.map(x=>x.title).join(" → ");
+
+  if(q.includes("day6")) return data.days[5].items.map(x=>x.title).join(" → ");
+
+  if(q.includes("big c")){
+
+    return (data.lists["Big C 必買清單"]||[])
+      .join("、");
+  }
+
+  if(q.includes("花費")){
+
+    const total=data.expenses.reduce(
+      (a,b)=>a+Number(b.thb||0),0
+    );
+
+    return `目前總花費 ${total.toFixed(0)} THB`;
+  }
+
+  if(q.includes("大城")){
+
+    return "大城建議優先包車，景點較分散，Bolt 作為備案。";
+  }
+
+  if(q.includes("下雨")){
+
+    return "可改去 ICONSIAM、CentralWorld、Terminal 21、Health Land。";
+  }
+
+  return `
+  我可以回答：
+  <br>• 今天行程
+  <br>• Day1~Day6
+  <br>• Big C 必買
+  <br>• 花費
+  <br>• 下雨怎麼辦
+  <br>• 大城交通
+  `;
+}
+
+setTimeout(()=>{
+  initTravelAI();
+},2000);
 </script>
 </body>
 </html>
