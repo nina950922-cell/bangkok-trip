@@ -253,6 +253,7 @@ textarea{min-height:76px;resize:vertical}
   padding:10px;
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div class="app" id="app">
@@ -1421,6 +1422,18 @@ function generateCertificate(){
 setTimeout(()=>{
   initTravelStats();
 },2500);
+/* ===== Supabase ===== */
+
+const SUPABASE_URL="https://ajgqtsdczzgvuqorulbd.supabase.co";
+
+const SUPABASE_KEY="sb_publishable_VvQst4oND6bNOtj3m06-rQ_z6XHfYCx";
+
+const sb = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+console.log("Supabase Connected");
 </script>
 </body>
 </html>
