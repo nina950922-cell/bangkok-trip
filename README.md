@@ -87,6 +87,14 @@ textarea{min-height:76px;resize:vertical}
 .expenseCard b{display:block;font-size:16px}
 .expenseCat{font-size:13px;color:var(--muted);margin-top:4px}
 .trashBtn{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;background:var(--card)}
+.memberCard,.settleCard{background:var(--accent);border-radius:20px;padding:12px;margin:10px 0}
+.memberAvatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary2));color:white;display:flex;align-items:center;justify-content:center;font-weight:900}
+.memberRow{display:flex;align-items:center;gap:10px}
+.splitBox{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.memberCheck{display:flex;gap:6px;align-items:center;background:var(--card);border-radius:14px;padding:8px}
+.superrichBox{background:linear-gradient(135deg,#fff7ef,#ffe0d2);border-radius:22px;padding:14px;margin:10px 0}
+[data-theme=dark] .superrichBox{background:linear-gradient(135deg,#2c1c18,#43251f)}
+.settleCard b{color:var(--primary)}
 </style>
 </head>
 <body>
@@ -327,7 +335,7 @@ function luxuryUpgrade(){
         </div>
       </div>
 
-      <div class="card">
+   <div class="card">
         <h2>航班資訊</h2>
         <div class="flightCard">
           <div><div class="meta">抵達</div><b>BKK</b><br><span>6/24 12:10</span></div>
@@ -370,52 +378,292 @@ renderAll=function(){
 };
 luxuryUpgrade();
 function renderBudget(){
-  $("rateTWD").value=data.rates.twd||0.88;
-  $("rateUSD").value=data.rates.usd||36.7;
+  data.rates.twd=data.rates.twd||0.88;
+  data.rates.usd=data.rates.usd||36.7;
+  data.budget=data.budget||0;
 
-  const cats=["美食","交通","購物","門票","其他"];
-  const icons={美食:"🍜",交通:"🚕",購物:"🛍️",門票:"🎟️",其他:"✨"};
-  const colors=["#ff8a6a","#70a9ff","#ffd166","#cdb4db","#a8dadc"];
-  const budget=15000;
+  $("rateTWD").value=data.rates.twd;
+  $("rateUSD").value=data.rates.usd;
+
+  const oldBudgetBox=document.getElementById("budgetControlBox");
+  if(!oldBudgetBox){
+    const firstCard=document.querySelector("#budget .card");
+    firstCard.insertAdjacentHTML("afterend",`
+      <div class="card" id="budgetControlBox">
+        <h2>旅費預算設定</h2>
+        <input id="tripBudgetInput" type="number" placeholder="輸入總預算 THB，例如 15000">
+        <button class="smallbtn primary" onclick="setTripBudget()">儲存預算</button>
+      </div>
+    `);
+  }
+
+  const tripBudgetInput=document.getElementById("tripBudgetInput");
+  if(tripBudgetInput) tripBudgetInput.value=data.budget||"";
+
   const sum=data.expenses.reduce((a,e)=>a+Number(e.thb||0),0);
-  const used=Math.min(100,sum/budget*100);
-  const left=Math.max(0,budget-sum);
+  const budget=Number(data.budget||0);
+  const left=budget?Math.max(0,budget-sum):0;
+  const used=budget?Math.min(100,sum/budget*100):0;
 
-  $("sumTHB").parentElement.parentElement.outerHTML=`
-    <div class="budgetHero">
-      <div class="stat"><small>THB 已花費</small><b id="sumTHB">${sum.toFixed(0)}</b></div>
-      <div class="stat"><small>TWD 約</small><b id="sumTWD">${(sum*data.rates.twd).toFixed(0)}</b></div>
-      <div class="stat usd"><small>USD 約</small><b id="sumUSD">${(sum/data.rates.usd).toFixed(2)}</b></div>
-    </div>
-    <div style="margin-top:14px">
-      <div class="row"><b>旅費預算 15,000 THB</b><span class="pill">剩餘 ${left.toFixed(0)} THB</span></div>
-      <div class="budgetProgress"><div class="budgetProgressBar" style="width:${used}%"></div></div>
+  $("sumTHB").textContent=sum.toFixed(0);
+  $("sumTWD").textContent=(sum*data.rates.twd).toFixed(0);
+  $("sumUSD").textContent=(sum/data.rates.usd).toFixed(2);
+
+  let progressBox=document.getElementById("budgetProgressBox");
+  if(!progressBox){
+    document.querySelector("#budget .canvaswrap").insertAdjacentHTML("beforebegin",`
+      <div id="budgetProgressBox"></div>
+    `);
+    progressBox=document.getElementById("budgetProgressBox");
+  }
+
+  progressBox.innerHTML=budget?`
+    <div style="margin:14px 0">
+      <div class="row">
+        <b>旅費預算 ${budget.toFixed(0)} THB</b>
+        <span class="pill">剩餘 ${left.toFixed(0)} THB</span>
+      </div>
+      <div class="budgetProgress">
+        <div class="budgetProgressBar" style="width:${used}%"></div>
+      </div>
       <div class="meta">已使用 ${used.toFixed(1)}%</div>
     </div>
+  `:`
+    <div class="notice" style="margin:12px 0">尚未設定旅費總預算，可在上方輸入 THB 預算。</div>
   `;
 
   drawChart();
 
-  const totals=cats.map(cat=>data.expenses.filter(e=>e.cat===cat).reduce((a,e)=>a+Number(e.thb||0),0));
-  const legend=totals.map((v,i)=>v>0?`
-    <div class="legendItem">
-      <span><span class="legendDot" style="background:${colors[i]}"></span>${icons[cats[i]]} ${cats[i]}</span>
-      <b>${v.toFixed(0)} THB · ${sum?Math.round(v/sum*100):0}%</b>
-    </div>
-  `:"").join("");
+  const icons={美食:"🍜",交通:"🚕",購物:"🛍️",門票:"🎟️",其他:"✨"};
 
-  $("expenses").innerHTML=`
-    ${legend || `<div class="meta">尚無花費，新增後會顯示分類比例。</div>`}
-    <div style="margin-top:14px">
-      ${data.expenses.map((e,i)=>`
-        <div class="expenseCard">
-          <b>${icons[e.cat]||"✨"} ${e.name}</b>
-          <div class="expenseCat">${e.cat}｜${Number(e.thb).toFixed(0)} THB｜約 NT$${(e.thb*data.rates.twd).toFixed(0)}｜USD ${(e.thb/data.rates.usd).toFixed(2)}</div>
-          <button class="trashBtn" onclick="data.expenses.splice(${i},1);renderAll()">🗑️</button>
-        </div>
-      `).join("")}
+  $("expenses").innerHTML=data.expenses.map((e,i)=>`
+    <div class="expenseCard">
+      <b>${icons[e.cat]||"✨"} ${e.name}</b>
+      <div class="expenseCat">${e.cat}｜${Number(e.thb).toFixed(0)} THB｜約 NT$${(e.thb*data.rates.twd).toFixed(0)}｜USD ${(e.thb/data.rates.usd).toFixed(2)}</div>
+      <button class="trashBtn" onclick="data.expenses.splice(${i},1);renderAll()">🗑️</button>
     </div>
+  `).join("") || `<div class="meta">尚無花費。</div>`;
+}
+
+function setTripBudget(){
+  const v=Number(document.getElementById("tripBudgetInput").value||0);
+  data.budget=v;
+  save();
+  renderAll();
+}
+data.members=data.members||[{name:"我",id:"me"}];
+
+function ensureSplitUI(){
+  if(document.getElementById("splitSection"))return;
+  const budget=document.getElementById("budget");
+  budget.insertAdjacentHTML("beforeend",`
+    <div class="card" id="splitSection">
+      <h2>成員與分帳</h2>
+
+      <div class="superrichBox">
+        <b>💱 SuperRich 匯率參考</b>
+        <p class="meta">可開啟 SuperRich 查最新匯率，再手動填入上方匯率欄位。</p>
+        <button class="smallbtn primary" onclick="window.open('https://www.superrichthailand.com/','_blank')">開啟 SuperRich</button>
+      </div>
+
+      <h3>旅行成員</h3>
+      <div id="membersList"></div>
+      <input id="newMemberName" placeholder="新增成員名稱，例如 男友、朋友A">
+      <button class="smallbtn primary" onclick="addMember()">新增成員</button>
+
+      <h3 style="margin-top:18px">新增分帳支出</h3>
+      <input id="splitName" placeholder="項目，例如 晚餐、Bolt、門票">
+      <input id="splitTHB" type="number" placeholder="金額 THB">
+      <select id="splitPayer"></select>
+      <div class="meta">選擇要一起分攤的人：</div>
+      <div id="splitPeople" class="splitBox"></div>
+      <button class="smallbtn primary" onclick="addSplitExpense()">新增分帳</button>
+
+      <h3 style="margin-top:18px">誰要給誰多少錢</h3>
+      <div id="settleResult"></div>
+    </div>
+  `);
+}
+
+function addMember(){
+  const name=document.getElementById("newMemberName").value.trim();
+  if(!name)return;
+  data.members.push({name,id:"m"+Date.now()});
+  document.getElementById("newMemberName").value="";
+  save();
+  renderAll();
+}
+
+function removeMember(id){
+  if(id==="me"){alert("不能刪除自己");return;}
+  data.members=data.members.filter(m=>m.id!==id);
+  save();
+renderAll();
+}
+function addSplitExpense(){
+  const name=document.getElementById("splitName").value.trim();
+  const thb=Number(document.getElementById("splitTHB").value||0);
+  const payer=document.getElementById("splitPayer").value;
+  const people=[...document.querySelectorAll(".splitPerson:checked")].map(x=>x.value);
+  if(!name||!thb||!payer||!people.length){alert("請填完整分帳資料");return;}
+
+  data.expenses.push({
+    name,
+    cat:"其他",
+    thb,
+    payer,
+    splitPeople:people,
+    isSplit:true
+  });
+
+  document.getElementById("splitName").value="";
+  document.getElementById("splitTHB").value="";
+  save();
+  renderAll();
+}
+
+function renderSplit(){
+  ensureSplitUI();
+
+  document.getElementById("membersList").innerHTML=data.members.map(m=>`
+    <div class="memberCard memberRow">
+      <div class="memberAvatar">${m.name.slice(0,1)}</div>
+      <div style="flex:1">
+        <b>${m.name}</b>
+        <div class="meta">${m.id==="me"?"旅行建立者":"受邀成員"}</div>
+      </div>
+      <button class="smallbtn" onclick="removeMember('${m.id}')">刪除</button>
+    </div>
+  `).join("");
+
+  document.getElementById("splitPayer").innerHTML=data.members.map(m=>`
+    <option value="${m.id}">付款人：${m.name}</option>
+  `).join("");
+
+  document.getElementById("splitPeople").innerHTML=data.members.map(m=>`
+    <label class="memberCheck">
+      <input class="splitPerson" type="checkbox" value="${m.id}" checked>
+      ${m.name}
+    </label>
+  `).join("");
+
+  const balance={};
+  data.members.forEach(m=>balance[m.id]=0);
+
+  data.expenses.filter(e=>e.isSplit).forEach(e=>{
+    const people=e.splitPeople||[];
+    const each=Number(e.thb||0)/people.length;
+    balance[e.payer]+=Number(e.thb||0);
+    people.forEach(id=>balance[id]-=each);
+  });
+
+  let debtors=Object.entries(balance).filter(([id,v])=>v<-.01).map(([id,v])=>({id,amount:-v}));
+  let creditors=Object.entries(balance).filter(([id,v])=>v>.01).map(([id,v])=>({id,amount:v}));
+  const results=[];
+
+  debtors.forEach(d=>{
+    creditors.forEach(c=>{
+      if(d.amount<=0||c.amount<=0)return;
+      const pay=Math.min(d.amount,c.amount);
+      results.push({from:d.id,to:c.id,amount:pay});
+      d.amount-=pay;
+      c.amount-=pay;
+    });
+  });
+
+  const getName=id=>(data.members.find(m=>m.id===id)||{}).name||"未知成員";
+
+  document.getElementById("settleResult").innerHTML=results.length?results.map(r=>`
+    <div class="settleCard">
+      <b>${getName(r.from)}</b> 要給 <b>${getName(r.to)}</b><br>
+      ${r.amount.toFixed(0)} THB ｜約 NT$${(r.amount*(data.rates.twd||0.88)).toFixed(0)}
+    </div>
+  `).join(""):`<div class="notice">目前沒有需要分帳的款項。</div>`;
+}
+
+const oldRenderAllSplit=renderAll;
+renderAll=function(){
+  oldRenderAllSplit();
+  renderSplit();
+};
+
+renderAll();
+loadBangkokWeather();
+async function loadBangkokWeather(){
+
+  const weatherCard = `
+  <div class="card" id="weatherCard">
+    <h2>☁️ 曼谷天氣</h2>
+    <div id="weatherContent">
+      讀取天氣中...
+    </div>
+  </div>
   `;
+
+  if(!document.getElementById("weatherCard")){
+    const home=document.getElementById("home");
+    const firstCard=home.querySelector(".card");
+    firstCard.insertAdjacentHTML("afterend",weatherCard);
+  }
+
+  try{
+
+    const url =
+    "https://api.open-meteo.com/v1/forecast?latitude=13.7563&longitude=100.5018&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FBangkok";
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    const currentTemp =
+      data.current.temperature_2m;
+
+    const days =
+      data.daily.time;
+
+    const rain =
+      data.daily.precipitation_probability_max;
+
+    let html=`
+      <div style="font-size:28px;font-weight:700">
+        🌡️ ${currentTemp}°C
+      </div>
+      <div class="meta">
+        Bangkok Current Weather
+      </div>
+      <hr style="margin:12px 0;border:none;border-top:1px solid var(--line)">
+    `;
+
+    for(let i=0;i<6;i++){
+
+      const d=new Date(days[i]);
+
+      html+=`
+      <div class="row" style="margin:6px 0">
+        <span>${d.getMonth()+1}/${d.getDate()}</span>
+        <span>
+          🌧️ ${rain[i]}%
+        </span>
+      </div>
+      `;
+    }
+
+    const maxRain=Math.max(...rain.slice(0,6));
+
+    if(maxRain>=60){
+      html+=`
+      <div class="notice" style="margin-top:12px">
+      ⚠️ 旅行期間有高降雨機率，建議攜帶雨傘。
+      </div>
+      `;
+    }
+
+    document.getElementById("weatherContent").innerHTML=html;
+
+  }catch(err){
+
+    document.getElementById("weatherContent").innerHTML=
+      "天氣資料載入失敗";
+  }
 }
 </script>
 </body>
