@@ -253,7 +253,6 @@ textarea{min-height:76px;resize:vertical}
   padding:10px;
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div class="app" id="app">
