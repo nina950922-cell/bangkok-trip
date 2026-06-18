@@ -77,6 +77,16 @@ textarea{min-height:76px;resize:vertical}
 .toolGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .toolTile{border-radius:22px;padding:14px;background:var(--accent);min-height:82px}
 .toolTile b{display:block;font-size:18px;margin-bottom:4px}
+.budgetHero{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.budgetHero .stat.usd{grid-column:1/3;background:linear-gradient(135deg,#ffd6c9,#ffb199)}
+.budgetProgress{height:14px;background:var(--line);border-radius:999px;overflow:hidden;margin:12px 0}
+.budgetProgressBar{height:100%;background:linear-gradient(90deg,var(--primary),var(--primary2));width:0}
+.legendItem{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.legendDot{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:8px}
+.expenseCard{position:relative;padding:12px 46px 12px 12px;border-radius:20px;background:var(--accent);margin:10px 0}
+.expenseCard b{display:block;font-size:16px}
+.expenseCat{font-size:13px;color:var(--muted);margin-top:4px}
+.trashBtn{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;background:var(--card)}
 </style>
 </head>
 <body>
@@ -359,6 +369,54 @@ renderAll=function(){
   luxuryUpgrade();
 };
 luxuryUpgrade();
+function renderBudget(){
+  $("rateTWD").value=data.rates.twd||0.88;
+  $("rateUSD").value=data.rates.usd||36.7;
+
+  const cats=["美食","交通","購物","門票","其他"];
+  const icons={美食:"🍜",交通:"🚕",購物:"🛍️",門票:"🎟️",其他:"✨"};
+  const colors=["#ff8a6a","#70a9ff","#ffd166","#cdb4db","#a8dadc"];
+  const budget=15000;
+  const sum=data.expenses.reduce((a,e)=>a+Number(e.thb||0),0);
+  const used=Math.min(100,sum/budget*100);
+  const left=Math.max(0,budget-sum);
+
+  $("sumTHB").parentElement.parentElement.outerHTML=`
+    <div class="budgetHero">
+      <div class="stat"><small>THB 已花費</small><b id="sumTHB">${sum.toFixed(0)}</b></div>
+      <div class="stat"><small>TWD 約</small><b id="sumTWD">${(sum*data.rates.twd).toFixed(0)}</b></div>
+      <div class="stat usd"><small>USD 約</small><b id="sumUSD">${(sum/data.rates.usd).toFixed(2)}</b></div>
+    </div>
+    <div style="margin-top:14px">
+      <div class="row"><b>旅費預算 15,000 THB</b><span class="pill">剩餘 ${left.toFixed(0)} THB</span></div>
+      <div class="budgetProgress"><div class="budgetProgressBar" style="width:${used}%"></div></div>
+      <div class="meta">已使用 ${used.toFixed(1)}%</div>
+    </div>
+  `;
+
+  drawChart();
+
+  const totals=cats.map(cat=>data.expenses.filter(e=>e.cat===cat).reduce((a,e)=>a+Number(e.thb||0),0));
+  const legend=totals.map((v,i)=>v>0?`
+    <div class="legendItem">
+      <span><span class="legendDot" style="background:${colors[i]}"></span>${icons[cats[i]]} ${cats[i]}</span>
+      <b>${v.toFixed(0)} THB · ${sum?Math.round(v/sum*100):0}%</b>
+    </div>
+  `:"").join("");
+
+  $("expenses").innerHTML=`
+    ${legend || `<div class="meta">尚無花費，新增後會顯示分類比例。</div>`}
+    <div style="margin-top:14px">
+      ${data.expenses.map((e,i)=>`
+        <div class="expenseCard">
+          <b>${icons[e.cat]||"✨"} ${e.name}</b>
+          <div class="expenseCat">${e.cat}｜${Number(e.thb).toFixed(0)} THB｜約 NT$${(e.thb*data.rates.twd).toFixed(0)}｜USD ${(e.thb/data.rates.usd).toFixed(2)}</div>
+          <button class="trashBtn" onclick="data.expenses.splice(${i},1);renderAll()">🗑️</button>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
 </script>
 </body>
 </html>
