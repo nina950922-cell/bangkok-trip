@@ -66,6 +66,17 @@ textarea{min-height:76px;resize:vertical}
 .floatTop{position:fixed;right:16px;bottom:106px;border-radius:50%;width:48px;height:48px;background:var(--primary);color:white;box-shadow:var(--shadow);z-index:40}
 .searchbox{position:sticky;top:132px;z-index:10}
 @media print{.nav,.hero,.floatTop,.actions,.formbox{display:none!important}body{background:white;color:black;padding:0}.section{display:block}.card{box-shadow:none;border:1px solid #ddd;background:white}}
+.settingsOnly{display:none}
+#itinerary .card:has(button[onclick="exportJSON()"]){display:none}
+.homeUpgrade{background:linear-gradient(135deg,#fff,#ffe3d7);border:1px solid var(--line)}
+[data-theme=dark] .homeUpgrade{background:linear-gradient(135deg,#241816,#3a211c)}
+.bigNumber{font-size:34px;font-weight:900;color:var(--primary);letter-spacing:-1px}
+.flightCard{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;text-align:center}
+.flightCard b{font-size:20px}
+.planeLine{font-size:24px;color:var(--primary)}
+.toolGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.toolTile{border-radius:22px;padding:14px;background:var(--accent);min-height:82px}
+.toolTile b{display:block;font-size:18px;margin-bottom:4px}
 </style>
 </head>
 <body>
@@ -292,6 +303,62 @@ function importJSON(e){let f=e.target.files[0];if(!f)return;let r=new FileReader
 function resetData(){if(confirm("重置為預設資料？")){localStorage.removeItem(STORE);data=JSON.parse(JSON.stringify(defaultData));renderAll()}}
 if("serviceWorker"in navigator){let sw=`self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('activate',e=>self.clients.claim());self.addEventListener('fetch',e=>e.respondWith(fetch(e.request).catch(()=>caches.match(e.request).then(r=>r||new Response('Offline',{headers:{'Content-Type':'text/plain'}})))))`;navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:"text/javascript"})))}
 bindMoney();renderAll();
+function luxuryUpgrade(){
+  const home=document.getElementById("home");
+  if(home && !document.getElementById("luxuryHome")){
+    home.insertAdjacentHTML("afterbegin",`
+      <div class="card homeUpgrade" id="luxuryHome">
+        <div class="row">
+          <div>
+            <div class="meta">距離出發</div>
+            <div class="bigNumber" id="luxDays">--</div>
+          </div>
+          <div style="font-size:46px">🛫</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>航班資訊</h2>
+        <div class="flightCard">
+          <div><div class="meta">抵達</div><b>BKK</b><br><span>6/24 12:10</span></div>
+          <div class="planeLine">✈️</div>
+          <div><div class="meta">回台灣</div><b>Taiwan</b><br><span>6/29 15:30</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>旅行儀表板</h2>
+        <div class="toolGrid">
+          <div class="toolTile"><b>🏨 飯店</b><span class="meta">Diya Hotel Srinakarin</span></div>
+          <div class="toolTile"><b>☁️ 天氣</b><span class="meta">炎熱、午後雷陣雨機率高</span></div>
+          <div class="toolTile"><b>💱 匯率</b><span class="meta">可在預算頁手動調整</span></div>
+          <div class="toolTile"><b>📌 重點</b><span class="meta">泰服、美甲、大城、Calypso</span></div>
+        </div>
+      </div>
+    `);
+  }
+
+  const d=new Date("2026-06-24T12:10:00+08:00")-new Date();
+  const luxDays=document.getElementById("luxDays");
+  if(luxDays) luxDays.textContent=d>0?Math.ceil(d/86400000)+" 天":"旅行中";
+
+  const tools=document.getElementById("tools");
+  const dataCard=[...document.querySelectorAll(".card")].find(c=>c.innerText.includes("資料管理")&&c.innerText.includes("匯出 JSON"));
+  if(tools && dataCard && !document.getElementById("movedDataBox")){
+    const clone=dataCard.cloneNode(true);
+    clone.id="movedDataBox";
+    clone.querySelector("h2").textContent="設定與資料備份";
+    tools.appendChild(clone);
+    dataCard.classList.add("settingsOnly");
+  }
+}
+
+const oldRenderAll=renderAll;
+renderAll=function(){
+  oldRenderAll();
+  luxuryUpgrade();
+};
+luxuryUpgrade();
 </script>
 </body>
 </html>
