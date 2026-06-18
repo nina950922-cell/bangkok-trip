@@ -1623,6 +1623,136 @@ error?error.message:"登入成功";
 }
 
 initAuthUI();
+function initTripCloudUI(){
+  if(document.getElementById("tripCloudBox"))return;
+
+  document.body.insertAdjacentHTML("beforeend",`
+    <div id="tripCloudBox" class="card" style="
+      position:fixed;
+      left:12px;
+      right:12px;
+      bottom:170px;
+      z-index:9999;
+      max-width:480px;
+      margin:auto;
+      display:none;
+    ">
+      <h2>☁️ 旅行同步</h2>
+
+      <input id="cloudTripName" placeholder="旅行名稱，例如 2026曼谷自由行">
+      <button class="smallbtn primary" onclick="createCloudTrip()">建立旅行</button>
+
+      <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+
+      <input id="joinCodeInput" placeholder="輸入邀請碼">
+      <button class="smallbtn" onclick="joinCloudTrip()">加入旅行</button>
+
+      <div id="tripCloudStatus" class="meta" style="margin-top:10px"></div>
+    </div>
+
+    <button onclick="toggleTripCloud()" style="
+      position:fixed;
+      bottom:90px;
+      left:20px;
+      z-index:9999;
+      border:none;
+      border-radius:50%;
+      width:60px;
+      height:60px;
+      font-size:24px;
+    ">🧳</button>
+  `);
+}
+
+function toggleTripCloud(){
+  const box=document.getElementById("tripCloudBox");
+  box.style.display=box.style.display==="none"?"block":"none";
+}
+
+function makeInviteCode(){
+  return "BKK-" + Math.random().toString(36).substring(2,8).toUpperCase();
+}
+
+async function createCloudTrip(){
+  const {data:{user}}=await sb.auth.getUser();
+
+  if(!user){
+    tripCloudStatus.innerHTML="請先登入";
+    return;
+  }
+
+  const name=document.getElementById("cloudTripName").value.trim() || "2026曼谷自由行";
+  const invite_code=makeInviteCode();
+
+  const {data:trip,error}=await sb
+    .from("trips")
+    .insert({
+      name,
+      destination:"Bangkok",
+      start_date:"2026-06-24",
+      end_date:"2026-06-29",
+      invite_code,
+      owner_id:user.id
+    })
+    .select()
+    .single();
+
+  if(error){
+    tripCloudStatus.innerHTML=error.message;
+    return;
+  }
+
+  await sb.from("trip_members").insert({
+    trip_id:trip.id,
+    user_id:user.id,
+    name:user.email,
+    role:"owner"
+  });
+
+  localStorage.setItem("current_trip_id",trip.id);
+
+  tripCloudStatus.innerHTML=`
+    建立成功！<br>
+    邀請碼：<b>${invite_code}</b>
+  `;
+}
+
+async function joinCloudTrip(){
+  const {data:{user}}=await sb.auth.getUser();
+
+  if(!user){
+    tripCloudStatus.innerHTML="請先登入";
+    return;
+  }
+
+  const code=document.getElementById("joinCodeInput").value.trim();
+
+  const {data:trip,error}=await sb
+    .from("trips")
+    .select("*")
+    .eq("invite_code",code)
+    .single();
+
+  if(error || !trip){
+    tripCloudStatus.innerHTML="找不到這個邀請碼";
+    return;
+  }
+
+  await sb.from("trip_members").insert({
+    trip_id:trip.id,
+    user_id:user.id,
+    name:user.email,
+    role:"member"
+  });
+
+  localStorage.setItem("current_trip_id",trip.id);
+
+  tripCloudStatus.innerHTML=`
+    已加入旅行：<b>${trip.name}</b>
+  `;
+}
+
+setTimeout(initTripCloudUI,1600);
 </script>
 </body>
 </html>
