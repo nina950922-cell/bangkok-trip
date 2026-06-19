@@ -185,15 +185,98 @@ function statusTag(s){
  if(s==="已取消")return `<span class="tag gray">已取消</span>`;
  return "";
 }
-function weather(){
- return ["今天","明天","後天","6/24","6/25","6/26","6/27"].map((d,i)=>({
-  d,hi:[35,34,35,34,35,33,34][i],lo:[27,27,28,27,28,27,27][i],
-  feel:[39,38,40,38,39,37,38][i],rain:[70,55,68,45,62,50,72][i],
-  uv:[10,9,10,8,9,8,10][i],aqi:[78,62,86,55,72,80,69][i]
- }))
+let liveWeather=null;
+let weatherLoading=true;
+
+const BANGKOK_LAT=13.7563;
+const BANGKOK_LON=100.5018;
+
+function weatherCodeText(code){
+ const map={
+  0:"晴朗",1:"大致晴朗",2:"局部多雲",3:"陰天",
+  45:"霧",48:"霧凇",
+  51:"小毛雨",53:"毛雨",55:"大毛雨",
+  61:"小雨",63:"雨",65:"大雨",
+  80:"短暫陣雨",81:"陣雨",82:"強陣雨",
+  95:"雷雨",96:"雷雨冰雹",99:"強雷雨冰雹"
+ };
+ return map[code]||"天氣變化";
 }
+
+async function fetchWeather(){
+ try{
+  weatherLoading=true;
+
+  const forecastUrl=
+   `https://api.open-meteo.com/v1/forecast?latitude=${BANGKOK_LAT}&longitude=${BANGKOK_LON}`+
+   `&current=temperature_2m,apparent_temperature,precipitation,rain,weather_code,wind_speed_10m`+
+   `&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,precipitation_probability_max,uv_index_max`+
+   `&timezone=Asia%2FBangkok&forecast_days=7`;
+
+  const airUrl=
+   `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${BANGKOK_LAT}&longitude=${BANGKOK_LON}`+
+   `&current=european_aqi,pm2_5&timezone=Asia%2FBangkok`;
+
+  const [forecastRes,airRes]=await Promise.all([fetch(forecastUrl),fetch(airUrl)]);
+  const forecast=await forecastRes.json();
+  const air=await airRes.json();
+
+  liveWeather={
+   current:{
+    temp:Math.round(forecast.current.temperature_2m),
+    feel:Math.round(forecast.current.apparent_temperature),
+    rainNow:forecast.current.rain||forecast.current.precipitation||0,
+    code:forecast.current.weather_code,
+    desc:weatherCodeText(forecast.current.weather_code),
+    wind:Math.round(forecast.current.wind_speed_10m),
+    aqi:air.current&&air.current.european_aqi?Math.round(air.current.european_aqi):null,
+    pm25:air.current&&air.current.pm2_5?Math.round(air.current.pm2_5):null
+   },
+   daily:forecast.daily.time.map((date,i)=>({
+    d:i===0?"今天":i===1?"明天":date.slice(5).replace("-","/"),
+    date,
+    hi:Math.round(forecast.daily.temperature_2m_max[i]),
+    lo:Math.round(forecast.daily.temperature_2m_min[i]),
+    feel:Math.round(forecast.daily.apparent_temperature_max[i]),
+    rain:forecast.daily.precipitation_probability_max[i]??0,
+    uv:Math.round(forecast.daily.uv_index_max[i]||0),
+    aqi:air.current&&air.current.european_aqi?Math.round(air.current.european_aqi):null,
+    code:forecast.daily.weather_code[i],
+    desc:weatherCodeText(forecast.daily.weather_code[i])
+   }))
+  };
+
+  weatherLoading=false;
+  render();
+ }catch(e){
+  weatherLoading=false;
+  liveWeather=null;
+  render();
+ }
+}
+
+function weather(){
+ if(liveWeather&&liveWeather.daily)return liveWeather.daily;
+
+ return ["今天","明天","後天","6/24","6/25","6/26","6/27"].map((d,i)=>({
+  d,
+  hi:[35,34,35,34,35,33,34][i],
+  lo:[27,27,28,27,28,27,27][i],
+  feel:[39,38,40,38,39,37,38][i],
+  rain:[70,55,68,45,62,50,72][i],
+  uv:[10,9,10,8,9,8,10][i],
+  aqi:[78,62,86,55,72,80,69][i],
+  desc:"備用天氣"
+ }));
+}
+
 function smartWeather(w){
- let a=[];if(w.rain>=60)a.push("☔ 降雨機率高，建議帶傘");if(w.feel>=38)a.push("🥵 體感炎熱，注意補水");if(w.uv>=8)a.push("☀ 紫外線高，補防曬");if(w.aqi>=80)a.push("💨 空氣品質偏差，可戴口罩");
+ let a=[];
+ if(w.rain>=60)a.push("☔ 降雨機率高，建議帶傘");
+ if(w.feel>=38)a.push("🥵 體感炎熱，注意補水");
+ if(w.uv>=8)a.push("☀ 紫外線高，補防曬");
+ if(w.aqi&&w.aqi>=80)a.push("💨 空氣品質偏差，可戴口罩");
+ if(w.desc&&/雷雨|陣雨|雨/.test(w.desc))a.push("🌧 可能有雨，室內行程可優先");
  return a.join(" · ")||"天氣適合外出";
 }
 const achRules=[
@@ -304,7 +387,17 @@ ai(){
 more(){
  return `<div class="card"><h2>旅遊工具</h2><h3>BTS / MRT 教學</h3><p>看路線顏色與終點站方向，購票可用現金、感應卡或 Rabbit Card；尖峰時段比計程車穩定。</p><h3>泰文常用句</h3>${thaiPhrases().map(x=>`<div class="item"><b>${x[0]}</b><br>${x[1]} · ${x[2]} · ${x[3]}</div>`).join("")}<h3>泰國實用App</h3><p>Grab、Bolt：叫車；foodpanda、LINE MAN：外送；Google Maps：導航；Eatigo、Chope：訂餐；Klook、KKday：票券與體驗。</p></div>
  <div class="card"><h2>提醒中心</h2><p>官方天氣警報、淹水警報、交通管制、大型活動、王室公告、節慶活動請以官方公告為準。寺廟需遮肩過膝；不摸頭、不用腳指人、不冒犯王室。</p></div>
- <div class="card"><h2>緊急聯絡</h2><p>飯店：Diya Hotel Srinakarin</p><button class="btn" onclick="copyText('Diya Hotel Srinakarin, Bangkok')">複製飯店地址給司機</button><p>泰國緊急電話：191 警察、1669 救護、1155 觀光警察。護照、保險、信用卡掛失資料可自行補入備忘。</p></div>
+ <div class="card"><h2>緊急聯絡</h2>
+<p><b>飯店：Diya Hotel Srinakarin</b></p>
+<p>英文地址：597, 2 Srinagarindra Rd, Phatthanakan, Suan Luang, Bangkok 10250 泰國</p>
+<p>泰文地址：597 2 ถ. ศรีนครินทร์ แขวงพัฒนาการ เขตสวนหลวง กรุงเทพมหานคร 10250</p>
+<div class="actions">
+<button class="btn" onclick="copyText('597, 2 Srinagarindra Rd, Phatthanakan, Suan Luang, Bangkok 10250 Thailand')">複製英文地址</button>
+<button class="btn" onclick="copyText('597 2 ถ. ศรีนครินทร์ แขวงพัฒนาการ เขตสวนหลวง กรุงเทพมหานคร 10250')">複製泰文地址</button>
+<button class="btn" onclick="maps('Diya Hotel Srinakarin 597 2 Srinagarindra Rd Bangkok')">Google Maps</button>
+</div>
+<p>泰國緊急電話：191 警察、1669 救護、1155 觀光警察。</p>
+</div>
  ${listCenter("eat","必吃清單")}${listCenter("buy","必買清單")}${listCenter("pack","行李清單")}
  <div class="card"><h2>旅行證書</h2><button class="btn primary" onclick="certificate()">產生並下載 PNG</button><button class="btn" onclick="window.print()">下載 PDF / 列印</button><canvas id="cert" height="520"></canvas></div>
  <div class="card"><h2>資料管理</h2><div class="actions"><button class="btn" onclick="exportJSON()">匯出 JSON</button><label class="btn">匯入 JSON<input hidden type="file" accept="application/json" onchange="importJSON(this)"></label><button class="btn" onclick="printTrip()">一鍵列印行程</button><button class="btn" onclick="resetData()">重置資料</button></div></div>`;
@@ -404,6 +497,7 @@ if("serviceWorker"in navigator){
  navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:"text/javascript"}))).catch(()=>{});
 }
 render();
+fetchWeather();
 </script>
 </body>
 </html>
